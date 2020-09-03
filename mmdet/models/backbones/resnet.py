@@ -10,52 +10,8 @@ from mmdet.utils import get_root_logger
 from ..registry import BACKBONES
 from ..utils import build_conv_layer, build_norm_layer
 
-# 添加注意力机制
-import torch
-import math
-try:
-    from torch.hub import load_state_dict_from_url
-except ImportError:
-    from torch.utils.model_zoo import load_url as load_state_dict_from_url
 
-# 通道注意力机制
-class ChannelAttention(nn.Module):
-    def __init__(self, in_planes, ratio=16):
-        super(ChannelAttention, self).__init__()
-        self.avg_pool = nn.AdaptiveAvgPool2d(1) #输出为1x1
-        self.max_pool = nn.AdaptiveAvgPool2d(1)
-
-        self.fc1 = nn.Conv2d(in_planes, in_planes // ratio, 1, bias=False)
-        self.relu1 = nn.ReLU()
-        self.fc2 = nn.Conv2d(in_planes // ratio, in_planes, 1, bias=False)
-
-        self.sigmoid = nn.Sigmoid()
-
-    def forward(self, x):
-        avg_out = self.fc2(self.relu1(self.fc1(self.avg_pool(x))))
-        max_out = self.fc2(self.relu1(self.fc1(self.max_pool(x))))
-        out = avg_out + max_out
-        return self.sigmoid(out)
-
-# 空间注意力机制
-class SpatialAttention(nn.Module):
-    def __init__(self, kernel_size=7):
-        super(SpatialAttention, self).__init__()
-
-        assert kernel_size in (3, 7), 'kernel size must be 3 or 7'
-        padding = 3 if kernel_size == 7 else 1
-
-        self.conv1 = nn.Conv2d(2, 1, kernel_size, padding=padding, bias=False)
-        self.sigmoid = nn.Sigmoid()
-
-    def foeward(self, x):
-        avg_out = torch.mean(x, dim=1, keepdim=True)
-        max_out, _ = torch.max(x, dim=1, keepdim=True)
-        x = torch.cat([avg_out, max_out], dim=1)
-        x = self.conv1(x)
-        return self.sigmoid(x)
-
-class BasicBlock(nn.Module):  # 对应ResNet-18和ResNet-34中使用的残差块
+class BasicBlock(nn.Module):
     expansion = 1
 
     def __init__(self,
@@ -126,7 +82,7 @@ class BasicBlock(nn.Module):  # 对应ResNet-18和ResNet-34中使用的残差块
         return out
 
 
-class Bottleneck(nn.Module):  # 对应ResNet网络层数大于50的情况
+class Bottleneck(nn.Module):
     expansion = 4
 
     def __init__(self,
@@ -284,7 +240,7 @@ class Bottleneck(nn.Module):  # 对应ResNet网络层数大于50的情况
         return out
 
 
-def make_res_layer(block,     # 对应上方两种残差块的类型
+def make_res_layer(block,
                    inplanes,
                    planes,
                    blocks,
@@ -480,10 +436,6 @@ class ResNet(nn.Module):
         self.feat_dim = self.block.expansion * 64 * 2**(
             len(self.stage_blocks) - 1)
 
-        # 网络的卷积层的最后一层加入注意力机制
-        self.ca1 = ChannelAttention(self.inplanes)
-        self.sa1 = SpatialAttention()
-
     @property
     def norm1(self):
         return getattr(self, self.norm1_name)
@@ -500,12 +452,6 @@ class ResNet(nn.Module):
         self.norm1_name, norm1 = build_norm_layer(self.norm_cfg, 64, postfix=1)
         self.add_module(self.norm1_name, norm1)
         self.relu = nn.ReLU(inplace=True)
-
-        # 网络的第一层加入注意力机制
-        self.ca = ChannelAttention(self.inplanes)
-        self.sa = SpatialAttention()
-
-
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
     def _freeze_stages(self):
@@ -551,12 +497,6 @@ class ResNet(nn.Module):
         x = self.conv1(x)
         x = self.norm1(x)
         x = self.relu(x)
-
-        #添加注意力机制
-        x = self.ca(x) * x
-        x = self.sa(x) * x
-
-
         x = self.maxpool(x)
         outs = []
         for i, layer_name in enumerate(self.res_layers):
@@ -564,11 +504,6 @@ class ResNet(nn.Module):
             x = res_layer(x)
             if i in self.out_indices:
                 outs.append(x)
-
-        x = self.ca1(x) * x
-        x = self.sa1(x) * x
-
-
         return tuple(outs)
 
     def train(self, mode=True):
