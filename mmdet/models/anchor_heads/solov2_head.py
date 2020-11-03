@@ -154,7 +154,7 @@ class SOLOv2Head(nn.Module):
         seg_num_grid = self.seg_num_grids[idx]
         kernel_feat = F.interpolate(kernel_feat, size=seg_num_grid, mode='bilinear')
 
-        cate_feat = kernel_feat[:, :-2, :, :]
+        cate_feat = kernel_feat[:, :-2, :, :] #去除最后两个维度x,y
 
         kernel_feat = kernel_feat.contiguous()
         for i, kernel_layer in enumerate(self.kernel_convs):

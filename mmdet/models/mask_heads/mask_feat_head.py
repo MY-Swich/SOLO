@@ -31,7 +31,7 @@ class MaskFeatHead(nn.Module):
         self.conv_cfg = conv_cfg
         self.norm_cfg = norm_cfg
 
-        self.convs_all_levels = nn.ModuleList()
+        self.convs_all_levels = nn.ModuleList()  # ModuleList()设计用来存储任意数量的nn.module
         for i in range(self.start_level, self.end_level + 1):
             convs_per_level = nn.Sequential()
             if i == 0:
@@ -43,8 +43,8 @@ class MaskFeatHead(nn.Module):
                     conv_cfg=self.conv_cfg,
                     norm_cfg=self.norm_cfg,
                     inplace=False)
-                convs_per_level.add_module('conv' + str(i), one_conv)
-                self.convs_all_levels.append(convs_per_level)
+                convs_per_level.add_module('conv' + str(i), one_conv)  #将one_conv加到convs_per-level网络中，命名为conv0,也就是第0层
+                self.convs_all_levels.append(convs_per_level) #将convs_per_level网络结构添加到convs_all_level网络中。
                 continue
 
             for j in range(i):

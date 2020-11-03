@@ -231,22 +231,22 @@ def show_result_ins(img,
     assert isinstance(class_names, (tuple, list))
     img = mmcv.imread(img)
     img_show = img.copy()
-    h, w, _ = img.shape
+    h, w, _ = img.shape #获取照片的H和W,_是省略channel
 
-    cur_result = result[0]
-    seg_label = cur_result[0]
-    seg_label = seg_label.cpu().numpy().astype(np.uint8)
-    cate_label = cur_result[1]
-    cate_label = cate_label.cpu().numpy()
-    score = cur_result[2].cpu().numpy()
+    cur_result = result[0] #获取result
+    seg_label = cur_result[0]  #result[0][0]
+    seg_label = seg_label.cpu().numpy().astype(np.uint8) #转换成numpy数组
+    cate_label = cur_result[1]  #result[0][1],这是类别
+    cate_label = cate_label.cpu().numpy() #转换成numpy数组
+    score = cur_result[2].cpu().numpy() #result[0][2],并转换为numpy数组，这是阈值
 
-    vis_inds = score > score_thr
-    seg_label = seg_label[vis_inds]
-    num_mask = seg_label.shape[0]
-    cate_label = cate_label[vis_inds]
-    cate_score = score[vis_inds]
+    vis_inds = score > score_thr  #vis_inds是bool类型
+    seg_label = seg_label[vis_inds] #result[0][0][vis_inds],显示为真的mask数组
+    num_mask = seg_label.shape[0]  #统计mask的数量
+    cate_label = cate_label[vis_inds] #可以显示的类别
+    cate_score = score[vis_inds] #可以显示的类别的得分
 
-    if sort_by_density:
+    if sort_by_density:  #根据mask密度排序
         mask_density = []
         for idx in range(num_mask):
             cur_mask = seg_label[idx, :, :]
@@ -259,18 +259,19 @@ def show_result_ins(img,
         cate_score = cate_score[orders]
 
     np.random.seed(42)
+    #生成颜色不同的mask的颜色
     color_masks = [
         np.random.randint(0, 256, (1, 3), dtype=np.uint8)
         for _ in range(num_mask)
     ]
     for idx in range(num_mask):
-        idx = -(idx+1)
-        cur_mask = seg_label[idx, :, :]
+        idx = -(idx+1)  #idx是mask的id，为啥加-
+        cur_mask = seg_label[idx, :, :] #选定一个mask
         cur_mask = mmcv.imresize(cur_mask, (w, h))
-        cur_mask = (cur_mask > 0.5).astype(np.uint8)
+        cur_mask = (cur_mask > 0.5).astype(np.uint8)  #将bool值转换为int类型的0，1真值
         if cur_mask.sum() == 0:
             continue
-        color_mask = color_masks[idx]
+        color_mask = color_masks[idx]   #选择颜色
         cur_mask_bool = cur_mask.astype(np.bool)
         img_show[cur_mask_bool] = img[cur_mask_bool] * 0.5 + color_mask * 0.5
 
@@ -279,9 +280,9 @@ def show_result_ins(img,
         label_text = class_names[cur_cate]
         #label_text += '|{:.02f}'.format(cur_score)
         center_y, center_x = ndimage.measurements.center_of_mass(cur_mask)
-        vis_pos = (max(int(center_x) - 10, 0), int(center_y))
+        vis_pos = (max(int(center_x) - 10, 0), int(center_y)) #确定名称的位置
         cv2.putText(img_show, label_text, vis_pos,
-                        cv2.FONT_HERSHEY_COMPLEX, 0.3, (255, 255, 255))  # green
+                        cv2.FONT_HERSHEY_COMPLEX, 0.3, (255, 255, 255))  # green    在图片上写类别
     if out_file is None:
         return img
     else:

@@ -4,7 +4,7 @@ from ..registry import DETECTORS
 
 @DETECTORS.register_module
 class SOLOv2(SingleStageInsDetector):
-
+# module的构造函数
     def __init__(self,
                  backbone,
                  neck,

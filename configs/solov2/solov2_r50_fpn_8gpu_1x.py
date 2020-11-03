@@ -43,7 +43,7 @@ model = dict(
             start_level=0,
             end_level=3,
             num_classes=256,
-            norm_cfg=dict(type='GN', num_groups=32, requires_grad=True)),
+            norm_cfg=dict(type='GN', num_groups=32, requires_grad=True)), #定义为组归一化 GroupNorm
     )
 # training and testing settings
 train_cfg = dict()
